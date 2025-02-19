@@ -24,14 +24,14 @@
         render.canvas.height = height;
 
         const boxA = Bodies.rectangle(400, 200, 80, 20);
-        const boxB = Bodies.rectangle(440, 200, 80, 20);
+        const boxB = Bodies.rectangle(485, 200, 80, 20);
         const ground = Bodies.rectangle(width / 2, height - 30, width, 60, { isStatic: true });
 
         const joint = Constraint.create({
             bodyA: boxA,
             bodyB: boxB,
             pointA: { x: 40, y: 0 },
-            pointB: { x: 40, y: 0 },
+            pointB: { x: -40, y: 0 },
             length: 5,
             stiffness: 0,
         });
