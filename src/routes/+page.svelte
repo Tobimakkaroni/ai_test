@@ -29,14 +29,14 @@
             }
         });
 
-        const boxA = Bodies.rectangle(100, 200, 80, 20, {
+        const boxA = Bodies.rectangle(100, 400, 80, 20, {
             render: {
                 fillStyle: '#FFFFFF',
                 strokeStyle: '#000000',
                 lineWidth: 2
             }
         });
-        const boxB = Bodies.rectangle(185, 200, 80, 20, {
+        const boxB = Bodies.rectangle(185, 400, 80, 20, {
             render: {
                 fillStyle: '#FFFFFF',
                 strokeStyle: '#000000',
@@ -84,8 +84,8 @@
             pointA: { x: 50, y: 0 },
             pointB: { x: -50, y: 0 },
             length: 0,
-            stiffness: 1,
-            angularStiffness: 0.01,
+            stiffness: 0.9,
+            angularStiffness: 0.1,
         });
 
         Composite.add(engine.world, [boxA, boxB, joint, ground, wallL, wallR, goal, obstacle]);
@@ -98,9 +98,14 @@
         // Q-Learning Setup
         const actions = ['rotateA+', 'rotateA-', 'rotateB+', 'rotateB-', 'none'];
         const qTable: { [key: string]: number[] } = {};
-        const alpha = 0.1; // Learning rate
-        const gamma = 0.9; // Discount factor
-        const epsilon = 0.1; // Exploration rate
+        const alpha = 0.2; // Learning rate
+        const gamma = 0.8; // Discount factor
+        let epsilon = 0.8; // HIGH Exploration rate
+        const epsilonDecayRate = 0.0001;
+
+        // State discretization parameters - INCREASE these
+        const angleDivisions = 36;
+        const positionDivisions = 16;
 
         function getState(): string {
             return JSON.stringify({
@@ -123,7 +128,20 @@
 
         function getReward(): number {
             distanceToGoal = Math.hypot(goal.position.x - boxB.position.x, goal.position.y - boxB.position.y);
-            return -distanceToGoal;
+
+            let reward = -distanceToGoal*0.01; // Scale down
+
+            if (Matter.Collision.collides(boxA, goal) || Matter.Collision.collides(boxB, goal)) {
+                reward = 100;
+            }
+
+            // Proximity reward -- The closer, the bigger
+            reward += 100/(distanceToGoal + 1);
+
+            // Step Reward -- A small penalty
+            reward -= 0.1;
+
+            return reward;
         }
 
         function chooseAction(state: string): string {
@@ -136,7 +154,7 @@
         }
 
         function performAction(action: string): void {
-            const rotationForce = 0.05;
+            const rotationForce = 0.03;
 
             if (action === 'rotateA+') {
                 Body.setAngularVelocity(boxA, rotationForce);
@@ -160,8 +178,8 @@
         }
 
         function resetPosition() {
-            Body.setPosition(boxA, { x: 100, y: 200 });
-            Body.setPosition(boxB, { x: 185, y: 200 });
+            Body.setPosition(boxA, { x: 100, y: 400 });
+            Body.setPosition(boxB, { x: 185, y: 400 });
             Body.setAngle(boxA, 0);
             Body.setAngle(boxB, 0);
             Body.setVelocity(boxA, { x: 0, y: 0 });
@@ -169,6 +187,9 @@
             Body.setAngularVelocity(boxA, 0);
             Body.setAngularVelocity(boxB, 0);
             episodeCount++;
+
+            // Decay epsilon every step
+            epsilon = Math.max(0.01, epsilon - epsilonDecayRate); //Min of 0.01
         }
 
         let stepCount = 0;
@@ -209,6 +230,7 @@
                     <br>Average Reward: ${averageReward.toFixed(2)}
                     <br>Best Reward: ${bestReward.toFixed(2)}
                     <br>Q-Table Size: ${Object.keys(qTable).length}
+                    <br>Epsilon: ${epsilon.toFixed(2)}
                 `;
             }
         }
